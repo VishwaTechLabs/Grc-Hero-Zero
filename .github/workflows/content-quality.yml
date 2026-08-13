@@ -1,0 +1,58 @@
+name: VishwaTech Labs Content Quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  content-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify curriculum
+        shell: bash
+        run: |
+          test -f README.md
+          test -f SYLLABUS.md
+          test "$(find days -name 'lesson.md' | wc -l)" -eq 30
+          test "$(find labs -name 'README.md' | wc -l)" -ge 30
+
+      - name: Verify every Markdown has VishwaTech Labs branding
+        shell: bash
+        run: |
+          bad=0
+          while IFS= read -r file; do
+            if ! grep -q "VishwaTech Labs" "$file"; then
+              echo "Missing VishwaTech Labs branding: $file"
+              bad=1
+            fi
+          done < <(find . -name '*.md' -not -path './.git/*')
+          test "$bad" -eq 0
+
+      - name: Verify every content folder has README
+        shell: bash
+        run: |
+          bad=0
+          while IFS= read -r dir; do
+            case "$dir" in
+              ./.git*) continue ;;
+              ./assets|./.github) continue ;;
+            esac
+            if ! test -f "$dir/README.md"; then
+              echo "Missing folder README: $dir"
+              bad=1
+            fi
+          done < <(find . -type d -not -path './.git*')
+          test "$bad" -eq 0
+
+      - name: Print content statistics
+        shell: bash
+        run: |
+          echo "Markdown files: $(find . -name '*.md' -not -path './.git/*' | wc -l)"
+          echo "CSV artifacts: $(find . -name '*.csv' -not -path './.git/*' | wc -l)"
+          echo "Folders: $(find . -type d -not -path './.git*' | wc -l)"
